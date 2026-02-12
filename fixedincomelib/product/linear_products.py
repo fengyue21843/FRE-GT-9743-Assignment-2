@@ -310,6 +310,8 @@ class InterestRateStream(ProductPortfolio):
         )
 
         products, weights = [], []
+
+        ### TODO
         for idx, row in schedule.iterrows():
             start_date = Date(row['StartDate'])
             end_date = Date(row['EndDate'])
@@ -345,7 +347,7 @@ class InterestRateStream(ProductPortfolio):
                 products.append(cashflow)
                 weights.append(fixed_rate)
 
-        ### TODO
+        
 
         super().__init__(products, weights)
 
@@ -420,7 +422,7 @@ class ProductRFRSwap(Product):
         )
         self.compounding_method_ = compounding_method
         
-        #fixed_leg_sign = 1.0 if self.pay_or_rec_ == PayOrReceive.PAY else -1.0
+        fixed_leg_sign = 1.0 if self.pay_or_rec_ == PayOrReceive.PAY else -1.0
 
         # floating leg
         ### TODO
@@ -428,7 +430,7 @@ class ProductRFRSwap(Product):
             effective_date = self.effective_date_,
             termination_date = self.termination_date_,
             accrual_period = self.floating_leg_accrual_period_,
-            notional = self.notional_,
+            notional = self.notional_ * (-fixed_leg_sign),
             currency = self.currency_,
             accrual_basis = self.accrual_basis_,
             buseinss_day_convention = self.pay_business_day_convention_,
@@ -450,7 +452,7 @@ class ProductRFRSwap(Product):
             effective_date=self.effective_date_,
             termination_date=self.termination_date_,
             accrual_period=self.accrual_period_,
-            notional=self.notional_ * 1.0,
+            notional=self.notional_ * fixed_leg_sign,
             currency=self.currency_,
             accrual_basis=self.accrual_basis_,
             buseinss_day_convention=self.pay_business_day_convention_,
