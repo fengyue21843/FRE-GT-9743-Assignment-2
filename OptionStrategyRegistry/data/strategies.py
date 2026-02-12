@@ -4,10 +4,13 @@ import logging
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 from abc import ABC, abstractmethod
 from ..utilities import get_config_folder, Registry
 from .definitions import OptionPayoff
+
+from OptionStrategyRegistry.utilities.registry_template import Registry
+
 
 
 logger = logging.getLogger(__name__)
@@ -165,6 +168,101 @@ class OptionStrategy:
 
 
 ### Option Strategy Registry
-class OptionStrategyRegistry(Registry):
-
 ### TODO
+class OptionStrategyRegistry(Registry):
+    """
+    Singleton registry for option strategies.
+    Automatically loads strategies from configs/strategies.yaml on first use.
+    
+    Example:
+        >>> registry = OptionStrategyRegistry()
+        >>> print(registry.list_registry_keys())
+        ['ATM_STRADDLE', 'DELTA25_RR', 'DELTA25_STRANGLE']
+        
+        >>> new_strategy = {
+        ...     'OPT_TYPE': ['C', 'P'],
+        ...     'DELTA_STRIKE': [0.25, 0.25],
+        ...     'WEIGHT': [1, 1]
+        ... }
+        >>> registry.register('MY_STRATEGY', new_strategy)
+    """
+    
+    def __new__(cls, *args, **kwargs):
+        """
+        Create singleton instance.
+        Auto-loads strategies from strategies.yaml on first instantiation.
+        
+        The base Registry class will:
+        1. Check if instance already exists (singleton pattern)
+        2. Load configs/strategies.yaml
+        3. Parse YAML into _registry dict
+        
+        Returns:
+            Singleton instance of OptionStrategyRegistry
+        """
+        return super().__new__(
+            cls,
+            registry_type="OPTION_STRATEGY",
+            file_name="strategies.yaml",
+            *args,
+            **kwargs
+        )
+    
+   
+    def register(self, query_key: str, inserted_object: Any):
+        """
+        Register a new option strategy or update existing one.
+        
+        Args:
+            query_key: Strategy identifier (e.g., 'ATM_STRADDLE')
+            inserted_object: Strategy data as dict with keys:
+                - 'OPT_TYPE': list of option types ['C', 'P']
+                - 'DELTA_STRIKE': list of delta strikes [0.5, 0.5]
+                - 'WEIGHT': list of weights [1, -1]
+        
+        Example:
+            >>> strategy_data = {
+            ...     'OPT_TYPE': ['C', 'P'],
+            ...     'DELTA_STRIKE': [0.5, 0.5],
+            ...     'WEIGHT': [1, 1]
+            ... }
+            >>> OptionStrategyRegistry().register('ATM_STRADDLE', strategy_data)
+        
+        Raises:
+            TypeError: If inserted_object is not a dict
+        
+        Note:
+            If query_key already exists, parent class will print warning
+            but registration will proceed (overwriting old value)
+        """
+        # Check for duplicate keys (parent will warn but not error)
+        super().register(query_key, inserted_object)
+        
+        # Only accept dict format
+        if isinstance(inserted_object, dict):
+            # Convert dict to OptionStrategy object
+            strategy = OptionStrategy.createFromDict(query_key, inserted_object)
+            
+            # Store in singleton's registry
+            self._registry[query_key] = strategy
+        else:
+            raise TypeError(
+                f"Strategy data must be dict, got {type(inserted_object).__name__}. "
+                f"Expected format: {{'OPT_TYPE': [...], 'DELTA_STRIKE': [...], 'WEIGHT': [...]}}"
+            )
+        
+    def list_registry_keys(self):
+        """
+        Return list of all registered strategy names.
+        
+        Returns:
+            list: Strategy identifiers (e.g., ['ATM_STRADDLE', 'DELTA25_RR', ...])
+        
+        Example:
+            >>> registry = OptionStrategyRegistry()
+            >>> print(registry.list_registry_keys())
+            ['ATM_STRADDLE', 'DELTA25_RR', 'DELTA25_STRANGLE']
+        """
+        return list(self._registry.keys())
+
+
